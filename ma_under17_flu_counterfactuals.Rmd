@@ -1,5 +1,5 @@
 ---
-title: "Massachusetts pediatric influenza hospitalizations: counterfactual analysis (6 months–17 years)"
+title: "Massachusetts pediatric influenza hospitalizations: counterfactual analysis"
 output:
   html_document:
     toc: true
@@ -8,28 +8,78 @@ output:
     code_folding: hide
 ---
 
+<style>
+.title {
+  font-size: 1.5em;
+}
+</style>
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(knitr)
+library(kableExtra)
+library(dplyr)
 ```
 
 ## Summary
 
-This analysis estimates excess influenza hospitalizations among Massachusetts children (6 months–17 years) under a scenario of reduced vaccine coverage. Key findings:
+This analysis estimates excess influenza hospitalizations among Massachusetts children (6 months–17 years) under a scenario of reduced vaccine coverage.
 
-| Metric | Value |
-|--------|-------|
-| Observed pediatric flu hospitalizations (MA, 2024–25 season) | **617** |
-| Baseline vaccine coverage (FluVaxView 2023–24) | **75.1%** (95% CI: 72.3–77.9); fixed at 0.75 for modeling |
-| Scenario modeled | **50% relative drop**: coverage falls from 0.75 → 0.375 |
-| Vaccine effectiveness (VE) range | **0.35–0.60** (sensitivity range) |
+```{r summary_table1, echo=FALSE}
+summary_df <- data.frame(
+  Metric = c(
+    "Observed pediatric flu hospitalizations (MA, 2024–25 season)",
+    "Baseline vaccine coverage (FluVaxView 2023–24)",
+    "Scenario modeled",
+    "Vaccine effectiveness (VE) range"
+  ),
+  Value = c(
+    "617",
+    "75.1% (95% CI: 72.3–77.9); 0.75 for modeling",
+    "50% drop: coverage falls 0.75 → 0.375",
+    "0.35–0.60"
+  )
+)
+
+kable(summary_df, col.names = c("Metric", "Value"), align = c("l", "l")) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "left",
+    font_size = 14
+  ) %>%
+  column_spec(1, bold = TRUE, width = "20em") %>%
+  column_spec(2, width = "25em") %>%
+  row_spec(0, bold = TRUE, background = "#2E86AB", color = "white")
+```
 
 **Estimated excess hospitalizations under the 50% relative drop scenario:**
 
-| Model version | Median | 90% uncertainty interval |
-|---------------|--------|--------------------------|
-| Direct only (M=1.0) | **171** | 115–245 |
-| Direct + modest herd (M=1.2) | **205** | 138–294 |
-| Direct + herd uncertainty (M~U[1.0,1.4]) | **204** | 132–305 |
+```{r summary_table2, echo=FALSE}
+results_summary_df <- data.frame(
+  Model = c(
+    "Direct only (M=1.0)",
+    "Direct + modest herd (M=1.2)",
+    "Direct + herd uncertainty (M~U[1.0,1.4])"
+  ),
+  Median = c("171", "205", "204"),
+  UI = c("115–245", "138–294", "132–305")
+)
+
+kable(results_summary_df,
+      col.names = c("Model version", "Median", "90% uncertainty interval"),
+      align = c("l", "r", "c")) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "left",
+    font_size = 14
+  ) %>%
+  column_spec(1, width = "18em") %>%
+  column_spec(2, bold = TRUE, width = "6em") %>%
+  column_spec(3, width = "10em") %>%
+  row_spec(0, bold = TRUE, background = "#2E86AB", color = "white")
+```
 
 *90% uncertainty interval = 5th to 95th percentile of Monte Carlo draws.*
 
@@ -40,13 +90,13 @@ This analysis estimates excess influenza hospitalizations among Massachusetts ch
 - **NHSN Hospital Respiratory Data (HRD)**: Weekly pediatric confirmed influenza new admissions for Massachusetts. Source: CDC Data Portal, Socrata dataset `ua7e-t2fy`. The hospitalization field used is `totalconfflunewadmped` (total confirmed flu new admissions, pediatric).
 - **CDC FluVaxView**: Seasonal influenza vaccination coverage for Massachusetts children ages 6 months–17 years. Source: CDC Data Portal, Socrata dataset `vh55-3he6`.
 
-*Note: Hospitalizations are pediatric (ages 0–17) while coverage is vaccine-eligible (6 months–17 years); results are interpreted for the vaccine-eligible group.*
+*Hospitalizations are pediatric (ages 0–17) while coverage is vaccine-eligible (6 months–17 years); results are interpreted for the vaccine-eligible group.*
 
 ## Model
 
-We model vaccination as a **partially effective vaccine** ("leaky" in epidemiologic terminology) that reduces the risk of hospitalization by a fixed fraction (vaccine effectiveness, VE) for each vaccinated child.
+We model vaccination as a **partially effective vaccine** that reduces the risk of hospitalization by a fixed fraction (vaccine effectiveness, VE) for each vaccinated child.
 
-**In plain terms:** We back-calculate the hospitalization burden that would have occurred with no vaccination, then re-apply a lower coverage level to estimate the counterfactual burden under reduced uptake.
+**Put plainly:** We back-calculate the hospitalization burden that would have occurred with no vaccination, then re-apply a lower coverage level to estimate the flu burden under reduced vaccine uptake.
 
 **Definitions:**
 
@@ -63,18 +113,15 @@ $$\Delta B = B_1 - B_{obs}$$
 
 Where $B_0$ is the implied burden with no vaccination and $\Delta B$ is the excess burden under reduced coverage.
 
-**Key assumptions:**
+**Some assumptions and notes:**
 
 - VE applies to hospitalization risk (not infection risk alone)
 - VE is constant across the season (no waning)
-- No explicit transmission model; herd effects are addressed separately via a multiplier
-
-## Limitations
-
-- Pediatric influenza hospitalizations for Massachusetts are only available in NHSN HRD starting in 2024–25.
-- Coverage for 2024–25 uses the most recent published FluVaxView value (2023–24 season); the baseline is fixed at 0.75 for modeling.
-- This is a direct-effects counterfactual; indirect (herd) effects are incorporated via a simple multiplier sensitivity analysis rather than a transmission model.
-- Hospitalizations cover ages 0–17 while coverage data is for ages 6 months–17 years; this mismatch is minor given few hospitalizations occur in infants under 6 months.
+- No explicit transmission model; herd effects are addressed separately via a multiplier from the literature
+- Pediatric influenza hospitalizations for Massachusetts are only available in NHSN starting in 2024–25.
+- Vaccine uptake/coverage uses the most recent published FluVaxView value (2023–24 season)
+- Hospitalizations cover ages 0–17
+- Vaccine uptake/coverage data is for ages 6 months–17 years
 
 ```{r libraries}
 library(httr)
@@ -84,13 +131,14 @@ library(tidyr)
 library(ggplot2)
 library(scales)
 library(knitr)
+library(kableExtra)
 
 # Create output directory
 output_dir <- "outputs"
 if (!dir.exists(output_dir)) dir.create(output_dir)
 ```
 
-## Parameters
+## Parameters and Helper
 
 ```{r parameters}
 season_id <- "2024-25"
@@ -111,18 +159,7 @@ coverage_baseline <- 0.75
 
 ve_grid <- seq(0.35, 0.60, by = 0.05)
 coverage_grid <- seq(0.75, 0.00, by = -0.05)
-```
 
-| Parameter | Value |
-|-----------|-------|
-| Season window | 2024-10-01 to 2025-04-30 (2024–25 season) |
-| Jurisdiction | Massachusetts (MA) |
-| Hospitalization field | `totalconfflunewadmped` (NHSN HRD pediatric confirmed flu admissions) |
-| Baseline coverage | 0.75 (fixed for sensitivity analysis) |
-| Coverage grid | 0.75 down to 0.00 in 0.05 steps |
-| VE grid | 0.35 to 0.60 in 0.05 steps |
-
-```{r socrata_helper}
 socrata_get <- function(domain, dataset_id, params, limit = 50000) {
   records <- list()
   offset <- 0
@@ -173,10 +210,6 @@ df_weekly <- df_weekly %>%
   ) %>%
   mutate(!!hrd_hosp_col := replace_na(!!sym(hrd_hosp_col), 0))
 
-head(df_weekly)
-```
-
-```{r compute_B_obs}
 B_obs <- sum(df_weekly[[hrd_hosp_col]], na.rm = TRUE)
 n_weeks <- nrow(df_weekly)
 ```
@@ -197,7 +230,6 @@ coverage_params <- list(
 )
 
 df_cov <- socrata_get(coverage_domain, coverage_dataset, coverage_params)
-df_cov
 ```
 
 ```{r extract_coverage}
@@ -210,7 +242,7 @@ if (nrow(df_cov) > 0) {
 }
 ```
 
-**FluVaxView estimate (2023–24):** `r sprintf("%.1f%%", coverage_estimate * 100)` (95% CI: `r coverage_ci`). Baseline fixed at **`r coverage_baseline`** for modeling.
+**FluVaxView estimate (2023–24):** `r sprintf("%.1f%%", coverage_estimate * 100)` (95% CI: `r coverage_ci`).
 
 ## Counterfactual grid
 
@@ -232,16 +264,12 @@ df_results <- expand.grid(VE = ve_grid, c1 = coverage_grid) %>%
   ) %>%
   select(season_id, B_obs, c0, c1, VE, B1_point, excess_point)
 
-head(df_results)
-```
-
-```{r save_results}
 output_path <- file.path(output_dir, sprintf("ma_under17_flu_counterfactual_%s.csv", season_id))
 write.csv(df_results, output_path, row.names = FALSE)
 cat(sprintf("Saved to: %s\n", output_path))
 ```
 
-## Heatmap (direct effects)
+## Basic excess model
 
 The heatmap summarizes excess hospitalizations across the VE and coverage grid. Lighter colors indicate lower excess burden; darker reds indicate higher excess burden.
 
@@ -268,9 +296,9 @@ ggplot(df_results, aes(x = factor(c1), y = factor(VE), fill = excess_point)) +
 
 ## Herd effects extension
 
-The direct-effects model captures protection for vaccinated individuals only. We do not explicitly model transmission. To show how results might increase if reduced coverage modestly increases transmission (herd effects), we multiply the direct-only excess by a factor M.
+The basic excess model captures protection for vaccinated individuals only. To show how results might increase if reduced coverage modestly increases transmission (herd effects), we multiply the basic excess by a factor M.
 
-We set **M = 1.2** as a modest scenario (20% additional excess), motivated by household-based analyses showing that indirect protection is limited—on the order of up to ~20% reduction in infection risk for unvaccinated household members even under optimistic assumptions about within-household transmission ([Tsang et al., 2018](https://www.nature.com/articles/s41467-018-08036-6)).
+We set **M = 1.2** as a modest scenario (20% additional excess), motivated by household-based analyses showing that indirect protection is limited, on the order of up to ~20% reduction in infection risk for unvaccinated household members even under optimistic assumptions about within-household transmission ([Tsang et al., 2018](https://www.nature.com/articles/s41467-018-08036-6)).
 
 Because indirect effects are setting- and season-dependent, we also show a sensitivity band **M ∈ [1.0, 1.4]**.
 
@@ -323,10 +351,10 @@ To avoid presenting a single point estimate, we use Monte Carlo simulation to pr
 
 **Uncertainty sources:**
 
-- **Count variability:** The observed seasonal total (617) is treated as a realized value that could plausibly vary around its mean. We approximate this variability with a Poisson model.
-- **VE uncertainty:** Vaccine effectiveness is drawn uniformly from the plausible range (0.35–0.60).
+- **Count variability:** The observed seasonal total (617) is treated as a realized value that could vary around its mean. We approximate this variability with a Poisson model.
+- **VE uncertainty:** Vaccine effectiveness is drawn uniformly from the range (0.35–0.60).
 
-For each of 20,000 Monte Carlo draws, we sample both parameters and compute the excess hospitalizations under the counterfactual scenario. Results are summarized as median (central estimate) and 90% uncertainty interval (5th to 95th percentile).
+For each of 20,000 Monte Carlo draws, we sample both parameters and compute the excess hospitalizations under the counterfactual scenario. Results are summarized as median and 90% uncertainty interval.
 
 ```{r monte_carlo}
 set.seed(12345)
@@ -396,8 +424,24 @@ df_uncertainty <- bind_rows(
 
 ```{r results_table}
 kable(df_uncertainty,
-      caption = "Estimated excess hospitalizations (90% uncertainty interval = 5th–95th percentile)",
-      align = c("l", "r", "r", "r"))
+      col.names = c("Model", "Median", "5th percentile", "95th percentile"),
+      align = c("l", "r", "r", "r")) %>%
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed"),
+    full_width = FALSE,
+    position = "left",
+    font_size = 14
+  ) %>%
+  column_spec(1, width = "18em") %>%
+  column_spec(2, bold = TRUE, width = "6em", background = "#f0f7fa") %>%
+  column_spec(3, width = "8em") %>%
+  column_spec(4, width = "8em") %>%
+  row_spec(0, bold = TRUE, background = "#2E86AB", color = "white") %>%
+  add_header_above(c(" " = 1, "Estimated excess hospitalizations" = 3),
+                   background = "#1a5f7a", color = "white", bold = TRUE) %>%
+  footnote(general = "90% uncertainty interval = 5th to 95th percentile of Monte Carlo draws.",
+           general_title = "Note: ",
+           footnote_as_chunk = TRUE)
 ```
 
 ```{r boxplot, fig.width=6, fig.height=5}
